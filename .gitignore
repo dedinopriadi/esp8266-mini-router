@@ -1,0 +1,24 @@
+# Build artifacts
+build/
+.pio/
+bin/
+*.bin
+*.elf
+*.hex
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.bak
+.DS_Store
+
+# Agent/AI context (optional to ignore, usually recommended for clean repos)
+.agent/
+.gemini/
+task.md
+walkthrough.md
+implementation_plan.md
+
+# Logs
+*.log
