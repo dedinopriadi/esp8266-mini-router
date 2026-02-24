@@ -6,6 +6,16 @@
 
 A minimalist firmware solution for the ESP8266. It transforms an ESP8266 into a functional WiFi Repeater featuring a **Captive Portal**, **NAT/NAPT** routing, and **Smart DNS Proxy**, with a focus on memory efficiency and stable performance.
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="screenshot/ss-1.png" width="400" alt="Captive Portal Login">
+  <img src="screenshot/ss-3.png" width="400" alt="Success Granted">
+</p>
+<p align="center">
+  <img src="screenshot/ss-2.png" width="400" alt="Admin Dashboard">
+</p>
+
 ---
 
 - **Networking**:
@@ -30,6 +40,19 @@ A minimalist firmware solution for the ESP8266. It transforms an ESP8266 into a 
 ## 🏗️ Project Architecture
 
 The codebase is modularized for maximum maintainability and clarity:
+
+```mermaid
+graph TD
+    A[mini_router.ino<br>Main Loop & Hardware] --> B(wifi_manager<br>STA/AP & NAT)
+    A --> C(session_manager<br>Auth & MAC Tracker)
+    A --> D(captive_portal<br>DNS Proxy & Web Server)
+    A --> E(admin_panel<br>Dashboard & OTA)
+    A --> F[(config_storage<br>LittleFS)]
+    
+    B -.-> |NAPT Routing| INTERNET
+    D -.-> |Spoof DNS| CLIENTS
+    E -.-> |Save/Load| F
+```
 
 - `mini_router.ino`: Main entry point, core logic loops, and hardware interaction.
 - `wifi_manager`: AP/STA initialization and NAPT/NAT configuration.
