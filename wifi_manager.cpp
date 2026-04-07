@@ -2,17 +2,24 @@
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <lwip/dns.h>
 #include <lwip/napt.h>
 
 #include "config_storage.h"
 
 static unsigned long last_check = 0;
 static const unsigned long CHECK_INTERVAL = 10000;
+static const uint16_t NAPT_TABLE_SIZE = 512;
+static const uint8_t NAPT_PORTMAP_SIZE = 32;
 
-void wifi_manager_init(const char *sta_ssid, const char *sta_pass,
-                       const char *ap_ssid, const char *ap_pass) {
+void wifi_manager_init(const char *sta_ssid, const char *sta_pass) {
   WiFi.mode(WIFI_AP_STA);
+
+  IPAddress local_ip;
+  if (local_ip.fromString(global_config.ap_ip)) {
+    IPAddress subnet(255, 255, 255, 0);
+    WiFi.softAPConfig(local_ip, local_ip, subnet);
+  }
+
   WiFi.softAP(global_config.ap_ssid, global_config.ap_pass);
 
 #ifdef DEBUG
@@ -25,7 +32,7 @@ void wifi_manager_init(const char *sta_ssid, const char *sta_pass,
   WiFi.begin(sta_ssid, sta_pass);
 
 #if LWIP_FEATURES && !LWIP_IPV6
-  err_t ret = ip_napt_init(512, 32);
+  err_t ret = ip_napt_init(NAPT_TABLE_SIZE, NAPT_PORTMAP_SIZE);
   if (ret == ERR_OK) {
     ip_napt_enable_no(SOFTAP_IF, 1);
 #ifdef DEBUG
@@ -34,7 +41,7 @@ void wifi_manager_init(const char *sta_ssid, const char *sta_pass,
   }
 #else
 #error                                                                         \
-    "Mbah Dukun bilang: LwIP NAT belum aktif! Ganti menu 'Tools -> LwIP Variant' di Arduino IDE ke 'v2 Higher Bandwidth (no features)' yang ada NAT!"
+    "Mbah Dukun bilang: LwIP NAT belum aktif! Ganti menu 'Tools -> LwIP Variant' di Arduino IDE ke 'v2 Higher Bandwidth' (JANGAN YANG 'no features'!)"
 #endif
 
 #ifdef DEBUG

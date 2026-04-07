@@ -11,14 +11,10 @@ static const char success_middle_html[] PROGMEM = R"rawliteral(
 </span></div><div class="info-item"><span>Status:</span><span class="info-val">Active</span></div><div class="info-item"><span>Remaining Time:</span><span class="info-val" id="time">
 )rawliteral";
 static const char success_footer_html[] PROGMEM = R"rawliteral(
-</span></div></div><a href="http:
+</span></div></div><a href="http://speedtest.net" class="btn" style="margin-top:15px">Test Connection</a></div>
 <script>
 let t=document.getElementById('time'),p=t.innerText.split(':'),s=(+p[0])*3600+(+p[1])*60+(+p[2]),i=setInterval(()=>{if(s<=0){clearInterval(i);location.reload();return}s--;let h=Math.floor(s/3600).toString().padStart(2,'0'),m=Math.floor((s%3600)/60).toString().padStart(2,'0'),sc=(s%60).toString().padStart(2,'0');t.innerText=h+':'+m+':'+sc},1000);
 </script>
 </body></html>
-static const char admin_header_html[] PROGMEM = R"rawliteral(
-<!DOCTYPE html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Router OS</title><style>*,::after,::before{box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;background-color:#f3f4f6;color:#111827;margin:0;padding:20px}.c{max-width:1000px;margin:0 auto}.h{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:20px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1);margin-bottom:20px}.h h1{margin:0;font-size:24px;color:#2563eb}.h .st{display:flex;align-items:center;gap:10px}.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.1)}.col-2{grid-column:1/-1}.card h3{margin:0 0 15px;padding-bottom:10px;border-bottom:1px solid #e5e7eb;color:#374151}table{width:100%;border-collapse:collapse;margin-bottom:10px}th,td{padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:14px}th{font-weight:600;color:#6b7280}.bg{padding:4px 8px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap}.bg-act{background:#d1fae5;color:#065f46}.bg-avl{background:#e0e7ff;color:#3730a3}.bg-use{background:#fee2e2;color:#991b1b}.bg-adm{background:#fef3c7;color:#92400e}.st-ind{width:10px;height:10px;border-radius:50%;display:inline-block}.st-on{background:#10b981;box-shadow:0 0 8px #10b981}.st-off{background:#ef4444;box-shadow:0 0 8px #ef4444}label{display:block;margin-bottom:6px;font-size:14px;color:#4b5563;font-weight:500}input[type=text],input[type=password],input[type=file]{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:15px;font-size:14px}input:focus{outline:0;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.2)}.btn{background:#3b82f6;color:#fff;padding:10px 15px;border:none;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;width:100%;transition:.2s}.btn:hover{background:#2563eb}.btn.dng{background:#ef4444}.btn.dng:hover{background:#dc2626}</style></head>
 )rawliteral";
-static const char admin_footer_html[] PROGMEM =
-    R"rawliteral(</div></div></body></html>)rawliteral";
 #endif

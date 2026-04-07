@@ -3,6 +3,7 @@
 [![Platform](https://img.shields.io/badge/Platform-ESP8266-blue.svg)](https://www.espressif.com/en/products/socs/esp8266)
 [![Framework](https://img.shields.io/badge/Framework-Arduino-orange.svg)](https://www.arduino.cc/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Changelog](https://img.shields.io/badge/Changelog-View-lightgrey.svg)](CHANGELOG.md)
 
 A minimalist firmware solution for the ESP8266. It transforms an ESP8266 into a functional WiFi Repeater featuring a **Captive Portal**, **NAT/NAPT** routing, and **Smart DNS Proxy**, with a focus on memory efficiency and stable performance.
 
@@ -28,9 +29,9 @@ A minimalist firmware solution for the ESP8266. It transforms an ESP8266 into a 
   - **Auto-Cleanup**: Automatically removes expired sessions.
 - **Interfaces**:
   - **Captive Portal**: Web-based login page for clients.
-  - **Admin Panel**: Dashboard for monitoring and network configuration.
+  - **Admin Panel**: Lightweight dashboard for monitoring and network configuration.
 - **🛠️ Technical Excellence**:
-  - **Zero-Allocation Policy**: Eliminates usage of the `String` class and `malloc/new` on critical runtime paths.
+  - **Embedded-Safe Memory Policy**: No STL and no manual `malloc/new`; fixed-size buffers on core runtime paths. `String` usage is limited to AsyncWebServer request boundary handling.
   - **Persistent Storage**: Robust configuration management using LittleFS with reliable factory default fallback.
   - **OTA Updates**: Over-The-Air firmware upgrade support for easy maintenance.
   - **Hardware Integrity**: 5-second long-press hardware factory reset capability.

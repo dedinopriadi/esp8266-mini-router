@@ -9,6 +9,35 @@ extern "C" {
 #include "config_storage.h"
 
 static ClientSession sessions[MAX_SESSIONS];
+static const char ADMIN_VOUCHER_LABEL[] = "ADMIN";
+
+static void copy_voucher_code(char *dst, const char *src) {
+  if (dst == nullptr) {
+    return;
+  }
+  if (src == nullptr) {
+    dst[0] = '\0';
+    return;
+  }
+  strncpy(dst, src, sizeof(sessions[0].voucher_code) - 1);
+  dst[sizeof(sessions[0].voucher_code) - 1] = '\0';
+}
+
+static bool release_voucher_code(const char *voucher_code) {
+  if (voucher_code == nullptr || voucher_code[0] == '\0' ||
+      strcmp(voucher_code, ADMIN_VOUCHER_LABEL) == 0) {
+    return false;
+  }
+
+  for (int i = 0; i < VOUCHER_COUNT; i++) {
+    if (strcmp(global_config.vouchers[i].code, voucher_code) == 0 &&
+        global_config.vouchers[i].is_used) {
+      global_config.vouchers[i].is_used = false;
+      return true;
+    }
+  }
+  return false;
+}
 
 static bool get_mac_from_ip(IPAddress ip, uint8_t *mac) {
   struct station_info *stat_info = wifi_softap_get_station_info();
@@ -44,19 +73,32 @@ void session_manager_init() {
 
 void session_manager_loop() {
   unsigned long current = millis();
+  bool voucher_state_changed = false;
 
   for (int i = 0; i < MAX_SESSIONS; i++) {
     if (sessions[i].active) {
       if (current - sessions[i].timestamp > SESSION_TIMEOUT_MS) {
+#ifdef DEBUG
+        IPAddress expired_ip = sessions[i].ip;
+#endif
+        if (release_voucher_code(sessions[i].voucher_code)) {
+          voucher_state_changed = true;
+        }
         sessions[i].active = false;
+        sessions[i].has_mac = false;
+        sessions[i].ip = IPAddress(0, 0, 0, 0);
         sessions[i].voucher_code[0] = '\0';
 #ifdef DEBUG
         Serial.print("[Session] Timeout! Evicted IP: ");
-        Serial.printf("%d.%d.%d.%d\n", sessions[i].ip[0], sessions[i].ip[1],
-                      sessions[i].ip[2], sessions[i].ip[3]);
+        Serial.printf("%d.%d.%d.%d\n", expired_ip[0], expired_ip[1],
+                      expired_ip[2], expired_ip[3]);
 #endif
       }
     }
+  }
+
+  if (voucher_state_changed) {
+    config_storage_save();
   }
 }
 
@@ -100,15 +142,15 @@ bool session_manager_login(IPAddress ip, const char *password) {
 
   if (strcmp(password, global_config.admin_pass) == 0) {
     is_valid = true;
-    strcpy(used_voucher, "ADMIN");
+    copy_voucher_code(used_voucher, ADMIN_VOUCHER_LABEL);
   } else {
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < VOUCHER_COUNT; i++) {
       if (strlen(global_config.vouchers[i].code) > 0 &&
           !global_config.vouchers[i].is_used &&
           strcmp(password, global_config.vouchers[i].code) == 0) {
         is_valid = true;
         global_config.vouchers[i].is_used = true;
-        strcpy(used_voucher, global_config.vouchers[i].code);
+        copy_voucher_code(used_voucher, global_config.vouchers[i].code);
         config_storage_save();
         break;
       }
@@ -125,8 +167,16 @@ bool session_manager_login(IPAddress ip, const char *password) {
 
   for (int i = 0; i < MAX_SESSIONS; i++) {
     if (sessions[i].active && sessions[i].ip == ip) {
+      bool voucher_state_changed = false;
+      if (strcmp(sessions[i].voucher_code, used_voucher) != 0 &&
+          release_voucher_code(sessions[i].voucher_code)) {
+        voucher_state_changed = true;
+      }
       sessions[i].timestamp = millis();
-      strcpy(sessions[i].voucher_code, used_voucher);
+      copy_voucher_code(sessions[i].voucher_code, used_voucher);
+      if (voucher_state_changed) {
+        config_storage_save();
+      }
       return true;
     }
   }
@@ -136,7 +186,7 @@ bool session_manager_login(IPAddress ip, const char *password) {
       sessions[i].ip = ip;
       sessions[i].timestamp = millis();
       sessions[i].active = true;
-      strcpy(sessions[i].voucher_code, used_voucher);
+      copy_voucher_code(sessions[i].voucher_code, used_voucher);
       sessions[i].has_mac = get_mac_from_ip(ip, sessions[i].mac);
 
 #ifdef DEBUG
@@ -162,11 +212,21 @@ bool session_manager_login(IPAddress ip, const char *password) {
 void session_manager_logout(IPAddress ip) {
   for (int i = 0; i < MAX_SESSIONS; i++) {
     if (sessions[i].active && sessions[i].ip == ip) {
+#ifdef DEBUG
+      IPAddress logout_ip = sessions[i].ip;
+#endif
+      bool voucher_state_changed = release_voucher_code(sessions[i].voucher_code);
       sessions[i].active = false;
+      sessions[i].has_mac = false;
+      sessions[i].ip = IPAddress(0, 0, 0, 0);
+      sessions[i].voucher_code[0] = '\0';
+      if (voucher_state_changed) {
+        config_storage_save();
+      }
 #ifdef DEBUG
       Serial.print("[Session] Explicit logout IP: ");
-      Serial.printf("%d.%d.%d.%d\n", sessions[i].ip[0], sessions[i].ip[1],
-                    sessions[i].ip[2], sessions[i].ip[3]);
+      Serial.printf("%d.%d.%d.%d\n", logout_ip[0], logout_ip[1], logout_ip[2],
+                    logout_ip[3]);
 #endif
       return;
     }

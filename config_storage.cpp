@@ -21,8 +21,12 @@ void config_storage_init() {
               sizeof(global_config.sta_ssid) - 1);
       strncpy(global_config.sta_pass, "23111998",
               sizeof(global_config.sta_pass) - 1);
+      strncpy(global_config.admin_user, "admin",
+              sizeof(global_config.admin_user) - 1);
       strncpy(global_config.admin_pass, "admin",
               sizeof(global_config.admin_pass) - 1);
+      strncpy(global_config.ap_ip, "192.168.4.1",
+              sizeof(global_config.ap_ip) - 1);
       return;
     }
   }
@@ -42,9 +46,11 @@ void config_storage_init() {
       global_config.sta_pass[sizeof(global_config.sta_pass) - 1] = '\0';
       global_config.ap_ssid[sizeof(global_config.ap_ssid) - 1] = '\0';
       global_config.ap_pass[sizeof(global_config.ap_pass) - 1] = '\0';
+      global_config.admin_user[sizeof(global_config.admin_user) - 1] = '\0';
       global_config.admin_pass[sizeof(global_config.admin_pass) - 1] = '\0';
+      global_config.ap_ip[sizeof(global_config.ap_ip) - 1] = '\0';
 
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < VOUCHER_COUNT; i++) {
         global_config.vouchers[i].code[15] = '\0';
       }
       return;
@@ -63,11 +69,14 @@ void config_storage_init() {
   strncpy(global_config.ap_ssid, "MiniRouter_AP",
           sizeof(global_config.ap_ssid) - 1);
   strncpy(global_config.ap_pass, "12345678", sizeof(global_config.ap_pass) - 1);
+  strncpy(global_config.admin_user, "admin",
+          sizeof(global_config.admin_user) - 1);
   strncpy(global_config.admin_pass, "admin",
           sizeof(global_config.admin_pass) - 1);
+  strncpy(global_config.ap_ip, "192.168.4.1", sizeof(global_config.ap_ip) - 1);
 
   randomSeed(micros());
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < VOUCHER_COUNT; i++) {
     config_storage_generate_random(global_config.vouchers[i].code, 6);
     global_config.vouchers[i].is_used = false;
   }

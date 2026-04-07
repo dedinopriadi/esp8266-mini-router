@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 
+#define VOUCHER_COUNT 5
+
 struct VoucherRecord {
   char code[16];
   bool is_used;
@@ -13,8 +15,10 @@ struct RouterConfig {
   char sta_pass[64];
   char ap_ssid[32];
   char ap_pass[64];
+  char admin_user[32];
   char admin_pass[32];
-  VoucherRecord vouchers[5];
+  char ap_ip[16];
+  VoucherRecord vouchers[VOUCHER_COUNT];
 };
 
 extern RouterConfig global_config;

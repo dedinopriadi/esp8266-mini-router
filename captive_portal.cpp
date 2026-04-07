@@ -8,6 +8,9 @@
 #include "session_manager.h"
 
 static const byte DNS_PORT = 53;
+static const uint16_t DNS_PROXY_PORT = 10053;
+static const uint16_t PUBLIC_DNS_PORT = 53;
+static const unsigned long DNS_QUERY_TIMEOUT_MS = 3000;
 static WiFiUDP dnsUDP;
 static WiFiUDP proxyUDP;
 
@@ -21,47 +24,55 @@ struct DNSQueryState {
   unsigned long timestamp;
 };
 
-static DNSQueryState pendingQueries[5];
+static DNSQueryState pendingQueries[MAX_SESSIONS];
+
+static void send_login_page(AsyncWebServerRequest *request) {
+  AsyncWebServerResponse *response =
+      request->beginResponse_P(200, "text/html", login_html);
+  response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  request->send(response);
+}
+
+static void send_success_page(AsyncWebServerRequest *request,
+                              IPAddress clientIP) {
+  AsyncResponseStream *response = request->beginResponseStream("text/html");
+  response->print(FPSTR(success_header_html));
+
+  ClientSession *sessions = session_manager_get_sessions();
+  char voucherStr[16] = "Unknown";
+  for (int i = 0; i < MAX_SESSIONS; i++) {
+    if (sessions[i].active && sessions[i].ip == clientIP) {
+      strncpy(voucherStr, sessions[i].voucher_code, sizeof(voucherStr) - 1);
+      voucherStr[sizeof(voucherStr) - 1] = '\0';
+      break;
+    }
+  }
+
+  response->printf("%s", voucherStr);
+  response->print(FPSTR(success_middle_html));
+
+  unsigned long remaining = session_manager_get_remaining_time(clientIP);
+  unsigned long rh = remaining / 3600000;
+  remaining %= 3600000;
+  unsigned long rm = remaining / 60000;
+  unsigned long rs = (remaining % 60000) / 1000;
+
+  response->printf("%02lu:%02lu:%02lu", rh, rm, rs);
+  response->print(FPSTR(success_footer_html));
+  request->send(response);
+}
 
 void captive_portal_init() {
-  proxyUDP.begin(10053);
+  proxyUDP.begin(DNS_PROXY_PORT);
   dnsUDP.begin(DNS_PORT);
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     IPAddress clientIP = request->client()->remoteIP();
 
     if (session_manager_is_authenticated(clientIP)) {
-      AsyncResponseStream *response = request->beginResponseStream("text/html");
-      response->print(FPSTR(success_header_html));
-
-      ClientSession *sessions = session_manager_get_sessions();
-      char voucherStr[16] = "Unknown";
-      for (int i = 0; i < MAX_SESSIONS; i++) {
-        if (sessions[i].active && sessions[i].ip == clientIP) {
-          strncpy(voucherStr, sessions[i].voucher_code, 15);
-          voucherStr[15] = '\0';
-          break;
-        }
-      }
-
-      response->printf("%s", voucherStr);
-      response->print(FPSTR(success_middle_html));
-
-      unsigned long remaining = session_manager_get_remaining_time(clientIP);
-      unsigned long rh = remaining / 3600000;
-      remaining %= 3600000;
-      unsigned long rm = remaining / 60000;
-      unsigned long rs = (remaining % 60000) / 1000;
-
-      response->printf("%02lu:%02lu:%02lu", rh, rm, rs);
-      response->print(FPSTR(success_footer_html));
-      request->send(response);
+      send_success_page(request, clientIP);
     } else {
-      AsyncWebServerResponse *response =
-          request->beginResponse_P(200, "text/html", login_html);
-      response->addHeader("Cache-Control",
-                          "no-cache, no-store, must-revalidate");
-      request->send(response);
+      send_login_page(request);
     }
   });
 
@@ -69,46 +80,23 @@ void captive_portal_init() {
     IPAddress clientIP = request->client()->remoteIP();
 
     if (session_manager_is_authenticated(clientIP)) {
-      AsyncResponseStream *response = request->beginResponseStream("text/html");
-      response->print(FPSTR(success_header_html));
-
-      ClientSession *sessions = session_manager_get_sessions();
-      char voucherStr[16] = "Unknown";
-      for (int i = 0; i < MAX_SESSIONS; i++) {
-        if (sessions[i].active && sessions[i].ip == clientIP) {
-          strncpy(voucherStr, sessions[i].voucher_code, 15);
-          voucherStr[15] = '\0';
-          break;
-        }
-      }
-
-      response->printf("%s", voucherStr);
-      response->print(FPSTR(success_middle_html));
-
-      unsigned long remaining = session_manager_get_remaining_time(clientIP);
-      unsigned long rh = remaining / 3600000;
-      remaining %= 3600000;
-      unsigned long rm = remaining / 60000;
-      unsigned long rs = (remaining % 60000) / 1000;
-
-      response->printf("%02lu:%02lu:%02lu", rh, rm, rs);
-      response->print(FPSTR(success_footer_html));
-      request->send(response);
+      send_success_page(request, clientIP);
     } else {
-      AsyncWebServerResponse *response =
-          request->beginResponse_P(200, "text/html", login_html);
-      response->addHeader("Cache-Control",
-                          "no-cache, no-store, must-revalidate");
-      request->send(response);
+      send_login_page(request);
     }
   });
 
   server.on("/login", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasParam("password", true)) {
-      const char *pwd = request->getParam("password", true)->value().c_str();
+      const AsyncWebParameter *password_param = request->getParam("password", true);
+      if (password_param == nullptr) {
+        request->send(400, "text/plain", "Missing password parameter");
+        return;
+      }
+      const String &password_value = password_param->value();
       IPAddress clientIP = request->client()->remoteIP();
 
-      if (session_manager_login(clientIP, pwd)) {
+      if (session_manager_login(clientIP, password_value.c_str())) {
         request->redirect("/");
       } else {
         request->send(
@@ -158,7 +146,7 @@ void captive_portal_loop() {
     } else {
       if (len >= 2) {
         uint16_t txId = (buf[0] << 8) | buf[1];
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < MAX_SESSIONS; i++) {
           if (!pendingQueries[i].active) {
             pendingQueries[i].active = true;
             pendingQueries[i].txId = txId;
@@ -166,7 +154,7 @@ void captive_portal_loop() {
             pendingQueries[i].clientPort = remotePort;
             pendingQueries[i].timestamp = current;
 
-            proxyUDP.beginPacket(IPAddress(8, 8, 8, 8), 53);
+            proxyUDP.beginPacket(IPAddress(8, 8, 8, 8), PUBLIC_DNS_PORT);
             proxyUDP.write(buf, len);
             proxyUDP.endPacket();
             break;
@@ -183,7 +171,7 @@ void captive_portal_loop() {
 
     if (len >= 2) {
       uint16_t txId = (buf[0] << 8) | buf[1];
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < MAX_SESSIONS; i++) {
         if (pendingQueries[i].active && pendingQueries[i].txId == txId) {
           dnsUDP.beginPacket(pendingQueries[i].clientIP,
                              pendingQueries[i].clientPort);
@@ -196,9 +184,9 @@ void captive_portal_loop() {
     }
   }
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < MAX_SESSIONS; i++) {
     if (pendingQueries[i].active &&
-        (current - pendingQueries[i].timestamp > 3000)) {
+        (current - pendingQueries[i].timestamp > DNS_QUERY_TIMEOUT_MS)) {
       pendingQueries[i].active = false;
     }
   }

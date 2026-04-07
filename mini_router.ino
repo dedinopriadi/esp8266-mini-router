@@ -4,25 +4,28 @@
 #include "captive_portal.h"
 #include "config_storage.h"
 #include "session_manager.h"
+#include "version.h"
 #include "wifi_manager.h"
 
 #define PIN_LED LED_BUILTIN
 #define PIN_BTN 0
 #define DEBUG
 
-const char *AP_SSID = "Mini_Hotspot";
-const char *AP_PASS = "12345678";
+static const unsigned long LED_BLINK_INTERVAL_MS = 500;
+static const unsigned long FACTORY_RESET_HOLD_MS = 5000;
 
-unsigned long last_led_blink = 0;
-bool led_state = false;
-unsigned long btn_pressed_time = 0;
-bool btn_is_pressing = false;
+static unsigned long last_led_blink = 0;
+static bool led_state = false;
+static unsigned long btn_pressed_time = 0;
+static bool btn_is_pressing = false;
 
 void setup() {
 #ifdef DEBUG
   Serial.begin(115200);
   delay(100);
-  Serial.println("\n--- Starting ESP8266 Mini Router ---");
+  Serial.print("\n--- Starting ESP8266 Mini Router (");
+  Serial.print(FIRMWARE_VERSION);
+  Serial.println(") ---");
 #endif
 
   pinMode(PIN_LED, OUTPUT);
@@ -30,9 +33,9 @@ void setup() {
   pinMode(PIN_BTN, INPUT_PULLUP);
 
   config_storage_init();
+
   session_manager_init();
-  wifi_manager_init(global_config.sta_ssid, global_config.sta_pass, AP_SSID,
-                    AP_PASS);
+  wifi_manager_init(global_config.sta_ssid, global_config.sta_pass);
   captive_portal_init();
   admin_panel_init();
   captive_portal_start();
@@ -55,7 +58,7 @@ void loop() {
       digitalWrite(PIN_LED, LOW);
     }
   } else {
-    if (current_time - last_led_blink >= 500) {
+    if (current_time - last_led_blink >= LED_BLINK_INTERVAL_MS) {
       last_led_blink = current_time;
       led_state = !led_state;
       digitalWrite(PIN_LED, led_state ? LOW : HIGH);
@@ -67,7 +70,7 @@ void loop() {
       btn_is_pressing = true;
       btn_pressed_time = current_time;
     } else {
-      if (current_time - btn_pressed_time >= 5000) {
+      if (current_time - btn_pressed_time >= FACTORY_RESET_HOLD_MS) {
         digitalWrite(PIN_LED, HIGH);
         config_storage_factory_reset();
       }
